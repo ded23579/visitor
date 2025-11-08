@@ -1,11 +1,11 @@
-// index.js (Versi Termux Lengkap dengan Evasi Fingerprinting)
+// index.js (Versi Termux Lengkap dengan Evasi Fingerprinting + Interaksi Acak)
 
-// --- PERUBAHAN 1: Menggunakan puppeteer-extra dan plugin stealth ---
+// --- Menggunakan puppeteer-extra dan plugin stealth ---
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const randomUseragent = require('random-useragent');
 
-// --- PERUBAHAN 2: Aktifkan plugin stealth ---
+// --- Aktifkan plugin stealth ---
 puppeteer.use(StealthPlugin());
 
 // Fungsi untuk menunda eksekusi (helper)
@@ -75,8 +75,6 @@ async function visitWebsiteWithReferrer(targetUrl, totalVisits, sourceUrl) {
 
         let browser;
         try {
-            // --- PERUBAHAN 3: Tetap gunakan puppeteer.launch dengan executablePath Termux ---
-            // Plugin stealth akan bekerja di atasnya.
             browser = await puppeteer.launch({
                 executablePath: '/data/data/com.termux/files/usr/bin/chromium-browser',
                 headless: true,
@@ -85,7 +83,7 @@ async function visitWebsiteWithReferrer(targetUrl, totalVisits, sourceUrl) {
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
                     '--no-first-run',
-                    '--single-process', // Argumen ini penting untuk stabilitas di Termux
+                    '--single-process',
                 ]
             });
 
@@ -119,7 +117,36 @@ async function visitWebsiteWithReferrer(targetUrl, totalVisits, sourceUrl) {
             console.log(`    [*] Menunggu 3 detik agar halaman target sepenuhnya stabil...`);
             await delay(3000);
 
-            // --- >>> FITUR BARU: KLIK DI TENGAH LAYAR <<< ---
+            // --- >>> TAMBAHAN: INTERAKSI ACAK TAMBAHAN <<< ---
+            console.log(`    [*] Mencoba interaksi acak (klik tombol/link/gambar)...`);
+            try {
+                // Coba klik tombol
+                const buttons = await page.$$('button, input[type="submit"], .btn');
+                if (buttons.length > 0) {
+                    const randomButton = buttons[Math.floor(Math.random() * buttons.length)];
+                    // Klik langsung menggunakan evaluate untuk lebih robust
+                    await page.evaluate(button => button.click(), randomButton);
+                    console.log(`    -> Berhasil klik tombol acak.`);
+                    await delay(2000); // Tunggu sebentar setelah klik
+                } else {
+                    throw new Error('Tidak ada tombol');
+                }
+            } catch (error) {
+                // Jika tidak ada tombol, coba klik link atau gambar
+                try {
+                    const linksAndImages = await page.$$('a[href], img');
+                    if (linksAndImages.length > 0) {
+                        const randomElement = linksAndImages[Math.floor(Math.random() * linksAndImages.length)];
+                        await page.evaluate(el => el.click(), randomElement);
+                        console.log(`    -> Tidak ada tombol, berhasil klik link/gambar acak.`);
+                        await delay(2000); // Tunggu sebentar setelah klik
+                    }
+                } catch (clickError) {
+                    console.log(`    -> Tidak ada elemen interaktif yang bisa diklik.`);
+                }
+            }
+
+            // --- >>> FITUR LAMA: KLIK DI TENGAH LAYAR <<< ---
             console.log(`    [*] Melakukan klik di tengah layar untuk simulasi interaksi...`);
             const viewport = page.viewport();
             const centerX = viewport.width / 2;
@@ -173,7 +200,7 @@ if (isNaN(visitCount) || visitCount <= 0) {
     process.exit(1);
 }
 
-// --- PERUBAHAN 4: Cek library yang diperlukan (termasuk yang baru) ---
+// --- Cek library yang diperlukan ---
 const requiredLibraries = ['random-useragent', 'puppeteer-extra', 'puppeteer-extra-plugin-stealth'];
 let needsInstall = [];
 
